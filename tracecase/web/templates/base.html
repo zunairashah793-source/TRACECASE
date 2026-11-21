@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}TRACECASE{% endblock %}</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('web.static', filename='css/style.css') }}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+<div class="app-layout">
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">T</div>
+            <span>TRACECASE</span>
+        </div>
+
+        <div class="sidebar-search">
+            <span>⌕</span>
+            <span>Search workspace</span>
+            <kbd>⌘ K</kbd>
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <span class="nav-heading">MAIN</span>
+
+            <a href="{{ url_for('web.dashboard') }}" class="nav-link active">
+                <span class="nav-icon">▦</span>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="{{ url_for('web.list_cases') }}" class="nav-link">
+                <span class="nav-icon">▤</span>
+                <span>Cases</span>
+            </a>
+
+            <div class="nav-heading secondary-heading">INVESTIGATION</div>
+
+            <div class="nav-item-static">
+                <span class="nav-icon">⌕</span>
+                <span>Threat Intelligence</span>
+            </div>
+
+            <div class="nav-item-static">
+                <span class="nav-icon">⌘</span>
+                <span>Network Analysis</span>
+            </div>
+
+            <div class="nav-item-static">
+                <span class="nav-icon">◈</span>
+                <span>Evidence</span>
+            </div>
+
+            <div class="nav-item-static">
+                <span class="nav-icon">◷</span>
+                <span>Timeline</span>
+            </div>
+
+            <div class="nav-heading secondary-heading">WORKSPACE</div>
+
+            <div class="nav-item-static">
+                <span class="nav-icon">⚙</span>
+                <span>Settings</span>
+            </div>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="security-card">
+                <div class="security-indicator"></div>
+                <strong>Investigation workspace</strong>
+                <p>Authorized security analysis environment</p>
+            </div>
+
+            <div class="sidebar-version">TRACECASE · UNIVERSITY PROJECT</div>
+        </div>
+
+    </aside>
+
+    <main class="main-area">
+
+        <header class="topbar">
+            <div class="breadcrumb">
+                <span>Workspace</span>
+                <span class="breadcrumb-separator">/</span>
+                <strong>{% block breadcrumb %}Dashboard{% endblock %}</strong>
+            </div>
+
+            <div class="topbar-actions">
+                <button class="icon-button" type="button"
+                        aria-label="Appearance">◐</button>
+
+                <div class="profile">
+                    <div class="profile-avatar">K</div>
+                    <span>Investigator</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+
+            <section class="page-header">
+                <div>
+                    <div class="eyebrow">TRACECASE WORKSPACE</div>
+
+                    <h1>{% block page_heading %}{% endblock %}</h1>
+
+                    <p>{% block page_description %}{% endblock %}</p>
+                </div>
+
+                <div class="page-actions">
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </section>
+
+            <div class="flash-container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endwith %}
+            </div>
+
+            <section class="page-content">
+                {% block content %}{% endblock %}
+            </section>
+
+            <footer class="main-footer">
+                <span>TRACECASE</span>
+                <span>External Cyber Investigation Platform</span>
+            </footer>
+
+        </div>
+    </main>
+</div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

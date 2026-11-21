@@ -1,0 +1,93 @@
+
+{% extends "base.html" %}
+
+{% block title %}Cases | TRACECASE{% endblock %}
+
+{% block breadcrumb %}Cases{% endblock %}
+
+{% block page_heading %}Investigation Cases{% endblock %}
+
+{% block page_description %}
+Manage and review your authorized external cyber investigation cases.
+{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid">
+
+    <article class="stat-card">
+        <div class="card-title">Total Cases</div>
+        <div class="card-value">—</div>
+        <div class="card-description">Awaiting verified case data</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="card-title">Active Cases</div>
+        <div class="card-value">—</div>
+        <div class="card-description">Awaiting verified case data</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="card-title">Closed Cases</div>
+        <div class="card-value">—</div>
+        <div class="card-description">Awaiting verified case data</div>
+    </article>
+
+</div>
+
+<div class="dashboard-grid">
+
+    <section class="card grid-span-12">
+
+        <div class="panel-title">All Investigation Cases</div>
+
+        <p class="card-description">
+            Review investigation records, their scope and current status.
+        </p>
+
+        <div class="table-container">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Case Title</th>
+                        <th>Scope</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td colspan="5">
+                            No verified investigation cases are available yet.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+    </section>
+
+    <section class="card grid-span-12">
+
+        <div class="panel-title">About Investigation Cases</div>
+
+        <p class="card-description">
+            Each TRACECASE investigation case provides a documented
+            workspace for authorized targets, external intelligence,
+            network analysis, findings and collected evidence.
+        </p>
+
+        <p class="card-description">
+            Case records and their status will appear here when the
+            backend integration is connected.
+        </p>
+
+    </section>
+
+</div>
+
+{% endblock %}
