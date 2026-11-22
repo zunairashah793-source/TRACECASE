@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}TRACECASE{% endblock %}</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('web.static', filename='css/style.css') }}"
+    >
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('web.dashboard') }}">
+            <span class="brand-mark">T</span>
+            <span>TRACECASE</span>
+        </a>
+
+        <nav class="main-nav" aria-label="Main navigation">
+            <a href="{{ url_for('web.dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('web.cases_page') }}">Cases</a>
+        </nav>
+    </header>
+
+    <main class="page-container">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-messages" aria-label="Notifications">
+                    {% for category, message in messages %}
+                        <div class="flash-message">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <section class="page-heading">
+            <div>
+                <p class="eyebrow">EXTERNAL CYBER INVESTIGATION PLATFORM</p>
+                <h1>{% block page_heading %}Investigation Workspace{% endblock %}</h1>
+                <p class="page-description">
+                    {% block page_description %}
+                    Manage investigation cases and review recorded evidence.
+                    {% endblock %}
+                </p>
+            </div>
+
+            {% block page_actions %}{% endblock %}
+        </section>
+
+        <section class="page-content">
+            {% block content %}{% endblock %}
+        </section>
+
+    </main>
+
+    <footer class="site-footer">
+        <p>TRACECASE — Authorized Investigation Environment</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

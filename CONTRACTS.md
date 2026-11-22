@@ -1,8 +1,8 @@
 # TRACECASE — Shared Technical Contracts
 
-**Version:** 2.1.1  
+**Version:** 2.1.2  
 **Status:** Reviewed interface baseline with worker ownership and form-binding clarifications (implementation and physical testing not yet claimed)  
-**Date:** 16 November 2026  
+**Date:** 17 November 2026  
 This document is the single source of truth for shared field names, enums, payloads, module boundaries, backend service signatures, worker jobs, and Flask routes. A member must not independently change these interfaces. Contract changes require a reviewed pull request and a version update.
 
 > These are interface specifications and type contracts, not finished application code. The team implements them in the assigned modules.
@@ -452,7 +452,9 @@ Any process invocation must use a fixed executable path/configuration, list-form
 The worker is a separate Python process on the Windows host that has a direct route to the authorized lab target. It is never installed inside Metasploitable 2. The same worker package is used for Local Lab Mode and Classroom Live Mode:
 
 - Local Lab Mode: worker runs on Zunaira's Windows host and reaches her Metasploitable VM through its Host-only adapter.
-- Classroom Live Mode: worker runs on Khadija's Windows host and reaches the Metasploitable VM through that host's Host-only adapter.
+- Classroom Live Mode: worker runs on Malaika Parveen's Windows host and reaches the Metasploitable VM through that host's Host-only adapter.
+
+The classroom Laptop B device assignment does not change module ownership: Malaika Parveen remains the network/worker implementation owner; Khadija remains the frontend/visualization owner; Asim remains the controller/backend owner.
 - Laptop A's controller sends an authenticated job to Laptop B's worker over the selected secure transport. The worker executes the bounded operation locally on Laptop B and returns the artifacts/results.
 
 This is remotely initiated/delegated assessment. The packets to the private VM originate from the target-side worker, not directly from Laptop A's physical network interface. Kali remains available for independent manual testing but is not required as the Flask worker runtime.
@@ -470,7 +472,7 @@ This is remotely initiated/delegated assessment. The packets to the private VM o
 - Never execute arbitrary shell commands, scripts, uploaded executables, caller-supplied executable paths, or arbitrary destination strings.
 - Never act as a general remote desktop or unrestricted remote shell.
 
-The `worker_id` is selected by the backend from its server-side worker configuration. The user-facing HTML form never accepts a worker ID. Each worker host has a local, untracked policy file (for example `instance/worker-policy.json`) mapping allowed `target_id` values to exact IP addresses, allowed ports, supported operations, and local profile IDs/interfaces. It is independent on Zunaira's and Khadija's machines and is never committed to Git. Worker credentials/keys live in local secret configuration or the chosen transport's device identity, never in the repository, database, job JSON, or logs. If the selected transport does not bind authenticated machine identity to protected job messages, the worker protocol must add a per-worker application-layer signature/HMAC with verification key material stored outside the repository on both ends.
+The `worker_id` is selected by the backend from its server-side worker configuration. The user-facing HTML form never accepts a worker ID. Each worker host has a local, untracked policy file (for example `instance/worker-policy.json`) mapping allowed `target_id` values to exact IP addresses, allowed ports, supported operations, and local profile IDs/interfaces. It is independent on Zunaira's and Malaika Parveen's machines and is never committed to Git. Worker credentials/keys live in local secret configuration or the chosen transport's device identity, never in the repository, database, job JSON, or logs. If the selected transport does not bind authenticated machine identity to protected job messages, the worker protocol must add a per-worker application-layer signature/HMAC with verification key material stored outside the repository on both ends.
 
 ### 7.2 AssessmentJob fields
 
