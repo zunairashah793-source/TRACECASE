@@ -1,0 +1,96 @@
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101827;
+    color: #f1f5f9;
+}
+
+.site-header {
+    background: #172235;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 22px;
+}
+
+.brand-mark {
+    display: inline-block;
+    background: #14b8a6;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-right: 8px;
+}
+
+.main-nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+}
+
+.page-container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 35px;
+}
+
+.page-heading {
+    margin-bottom: 30px;
+}
+
+.eyebrow {
+    color: #14b8a6;
+    letter-spacing: 2px;
+    font-size: 12px;
+}
+
+.page-heading h1 {
+    font-size: 32px;
+}
+
+.page-description {
+    color: #aab7c8;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.dashboard-card {
+    background: #1c293b;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #344256;
+}
+
+.dashboard-card h2 {
+    color: #14b8a6;
+}
+
+.dashboard-card p {
+    color: #c4cede;
+    line-height: 1.6;
+}
+
+.dashboard-card a {
+    color: #14b8a6;
+}
+
+.site-footer {
+    text-align: center;
+    padding: 30px;
+    color: #8592a5;
+}

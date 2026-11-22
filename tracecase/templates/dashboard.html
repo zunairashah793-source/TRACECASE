@@ -1,0 +1,43 @@
+
+{% extends "base.html" %}
+
+{% block title %}TRACECASE Dashboard{% endblock %}
+
+{% block page_heading %}
+Dashboard
+{% endblock %}
+
+{% block page_description %}
+External Cyber Investigation and Threat Intelligence Workspace
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-grid">
+
+    <div class="dashboard-card">
+        <h2>Investigation Cases</h2>
+        <p>Manage your investigation cases.</p>
+        <a href="{{ url_for('web.list_cases') }}">
+            View Cases
+        </a>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>External Intelligence</h2>
+        <p>Investigate public IP addresses, domains and indicators.</p>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Network Analysis</h2>
+        <p>Analyze authorized lab network scan results.</p>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Evidence Management</h2>
+        <p>Manage investigation artifacts and collected evidence.</p>
+    </div>
+
+</div>
+
+{% endblock %}
