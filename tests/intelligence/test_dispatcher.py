@@ -99,3 +99,105 @@ def test_unsupported_indicator_type_is_rejected():
             indicator_type="unsupported",
             target_kind="external_public",
         )
+
+
+@pytest.mark.parametrize(
+    "indicator, indicator_type",
+    [
+        ("2001:4860:4860::8888", "ipv6"),
+    ],
+)
+def test_public_ipv6_dispatches_to_all_ip_collectors(
+    monkeypatch, indicator, indicator_type
+):
+    ip = Mock(return_value=["ip-result"])
+    reputation = Mock(return_value=["reputation-result"])
+    tls = Mock(return_value=["tls-result"])
+
+    monkeypatch.setattr(dispatcher.ip_intel, "collect_ip_intel", ip)
+    monkeypatch.setattr(dispatcher.reputation, "collect_reputation", reputation)
+    monkeypatch.setattr(dispatcher.tls_intel, "collect_tls_intel", tls)
+
+    results = dispatcher.collect_external_intelligence(
+        indicator=indicator,
+        indicator_type=indicator_type,
+        target_kind="external_public",
+    )
+
+    assert results == ["ip-result", "reputation-result", "tls-result"]
+    ip.assert_called_once_with(
+        indicator=indicator, indicator_type=indicator_type
+    )
+    reputation.assert_called_once_with(
+        indicator=indicator, indicator_type=indicator_type
+    )
+    tls.assert_called_once_with(
+        indicator=indicator, indicator_type=indicator_type
+    )
+
+
+@pytest.mark.parametrize(
+    "indicator, indicator_type",
+    [
+        ("sub.example.com", "subdomain"),
+        ("mail.example.com", "hostname"),
+        ("https://example.com", "url"),
+    ],
+)
+def test_domain_variants_dispatch_to_domain_and_tls(
+    monkeypatch, indicator, indicator_type
+):
+    domain = Mock(return_value=["domain-result"])
+    tls = Mock(return_value=["tls-result"])
+    reputation = Mock()
+
+    monkeypatch.setattr(
+        dispatcher.domain_intel, "collect_domain_intel", domain
+    )
+    monkeypatch.setattr(dispatcher.tls_intel, "collect_tls_intel", tls)
+    monkeypatch.setattr(
+        dispatcher.reputation, "collect_reputation", reputation
+    )
+
+    results = dispatcher.collect_external_intelligence(
+        indicator=indicator,
+        indicator_type=indicator_type,
+        target_kind="external_public",
+    )
+
+    assert results == ["domain-result", "tls-result"]
+    domain.assert_called_once_with(
+        indicator=indicator, indicator_type=indicator_type
+    )
+    tls.assert_called_once_with(
+        indicator=indicator, indicator_type=indicator_type
+    )
+    reputation.assert_not_called()
+
+
+def test_tls_certificate_dispatches_only_to_tls(monkeypatch):
+    tls = Mock(return_value=["tls-result"])
+    ip = Mock()
+    domain = Mock()
+    reputation = Mock()
+
+    monkeypatch.setattr(dispatcher.tls_intel, "collect_tls_intel", tls)
+    monkeypatch.setattr(dispatcher.ip_intel, "collect_ip_intel", ip)
+    monkeypatch.setattr(
+        dispatcher.domain_intel, "collect_domain_intel", domain
+    )
+    monkeypatch.setattr(
+        dispatcher.reputation, "collect_reputation", reputation
+    )
+
+    results = dispatcher.collect_external_intelligence(
+        indicator="a" * 64,
+        indicator_type="tls_certificate",
+        target_kind="external_public",
+    )
+
+    assert results == ["tls-result"]
+    tls.assert_called_once()
+    ip.assert_not_called()
+    domain.assert_not_called()
+    reputation.assert_not_called()
