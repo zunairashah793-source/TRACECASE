@@ -127,7 +127,33 @@ class TestNmapParser(unittest.TestCase):
                 parse_nmap_xml_file(artifact_path)
         finally:
             artifact_path.unlink()
+    def test_invalid_root_element(self):
+        artifact_path = Path(__file__).parent / "wrong_root.xml"
+        artifact_path.write_text(
+            "<not_nmap></not_nmap>",
+            encoding="utf-8"
+        )
 
+        try:
+            with self.assertRaises(ValueError):
+                parse_nmap_xml_file(artifact_path)
+        finally:
+            artifact_path.unlink()
+
+    def test_parse_nmap_xml_rejects_empty_indicator_type(self):
+        artifact_path = (
+            Path(__file__).parent.parent
+            / "fixtures"
+            / "nmap"
+            / "sample_nmap.xml"
+        )
+
+        with self.assertRaises(ValueError):
+            parse_nmap_xml(
+                artifact_path=artifact_path,
+                indicator="192.0.2.10",
+                indicator_type=""
+            )
 
 if __name__ == "__main__":
     unittest.main()

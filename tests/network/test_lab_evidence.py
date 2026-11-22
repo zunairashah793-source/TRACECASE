@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from datetime import datetime
 import json
 import tempfile
@@ -145,6 +146,59 @@ class TestLabEvidenceParser(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_lab_evidence_file(evidence_file)
 
+    def test_file_size_limit(self):
+        evidence_file = self.test_dir / "large.log"
+        evidence_file.write_text("test", encoding="utf-8")
 
+        with patch("tracecase.network.lab_evidence.MAX_FILE_SIZE", 2):
+            with self.assertRaisesRegex(ValueError, "exceeds the allowed size"):
+                parse_lab_evidence_file(evidence_file)
+
+    def test_file_read_error(self):
+        evidence_file = self.test_dir / "system.log"
+        evidence_file.write_text("System started", encoding="utf-8")
+
+        with patch.object(Path, "read_text", side_effect=OSError("Read failed")):
+            with self.assertRaisesRegex(ValueError, "Unable to read evidence file"):
+                parse_lab_evidence_file(evidence_file)
+
+    def test_rejects_empty_indicator_type(self):
+        evidence_file = self.test_dir / "system.log"
+        evidence_file.write_text("System started", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "indicator_type"):
+            analyze_lab_evidence(
+                artifact_path=evidence_file,
+                artifact_type="system_log",
+                indicator="192.0.2.10",
+                indicator_type=" ",
+                source_tool="ssh_evidence",
+            )
+
+    def test_rejects_empty_artifact_type(self):
+        evidence_file = self.test_dir / "system.log"
+        evidence_file.write_text("System started", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "artifact_type"):
+            analyze_lab_evidence(
+                artifact_path=evidence_file,
+                artifact_type="",
+                indicator="192.0.2.10",
+                indicator_type="ip",
+                source_tool="ssh_evidence",
+            )
+
+    def test_rejects_empty_source_tool(self):
+        evidence_file = self.test_dir / "system.log"
+        evidence_file.write_text("System started", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "source_tool"):
+            analyze_lab_evidence(
+                artifact_path=evidence_file,
+                artifact_type="system_log",
+                indicator="192.0.2.10",
+                indicator_type="ip",
+                source_tool=" ",
+            )
 if __name__ == "__main__":
     unittest.main()

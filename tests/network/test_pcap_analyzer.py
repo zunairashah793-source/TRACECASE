@@ -137,5 +137,66 @@ class TestPcapAnalyzer(unittest.TestCase):
             parse_pcap_file(self.capture_file)
 
 
+    # Additional PCAP validation and error-handling tests
+
+    def test_analyze_pcap_rejects_empty_indicator_type(self):
+        with self.assertRaises(ValueError):
+            analyze_pcap(
+                artifact_path=self.capture_file,
+                indicator="192.0.2.10",
+                indicator_type=""
+            )
+
+
+    def test_file_size_limit(self):
+        large_file = self.folder / "large.pcap"
+
+        with open(large_file, "wb") as file:
+            file.truncate(100 * 1024 * 1024 + 1)
+
+        with self.assertRaisesRegex(ValueError, "exceeds"):
+            parse_pcap_file(large_file)
+
+
+    def test_missing_tshark_executable(self):
+        missing_tshark = self.folder / "missing_tshark.exe"
+
+        with patch(
+            "tracecase.network.pcap_parser.TSHARK_PATH",
+            missing_tshark
+        ):
+            with self.assertRaisesRegex(ValueError, "not found"):
+                parse_pcap_file(self.capture_file)
+
+
+    @patch("tracecase.network.pcap_parser.subprocess.run")
+    def test_tshark_timeout(self, mock_run):
+        mock_run.side_effect = __import__("subprocess").TimeoutExpired(
+            "tshark", 30
+        )
+
+        with self.assertRaisesRegex(ValueError, "timed out"):
+            parse_pcap_file(self.capture_file)
+
+
+    @patch("tracecase.network.pcap_parser.subprocess.run")
+    def test_tshark_os_error(self, mock_run):
+        mock_run.side_effect = OSError("Execution failed")
+
+        with self.assertRaisesRegex(ValueError, "Unable to execute"):
+            parse_pcap_file(self.capture_file)
+
+
+    @patch("tracecase.network.pcap_parser.subprocess.run")
+    def test_invalid_output_row_is_ignored(self, mock_run):
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout="invalid output row\n"
+        )
+
+        results = parse_pcap_file(self.capture_file)
+
+        self.assertEqual(results, [])
+
 if __name__ == "__main__":
     unittest.main()

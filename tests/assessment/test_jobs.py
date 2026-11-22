@@ -3,14 +3,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from tracecase.assessment.jobs import (
     REQUIRED_JOB_FIELDS,
     parse_job_json,
     validate_job_data,
+    _normalize_domain,
+    _validate_target_indicator,
 )
-
-
 @pytest.fixture
 def valid_job():
     current_time = datetime.now(timezone.utc).replace(microsecond=0)
@@ -259,3 +258,70 @@ def test_tls_fingerprint_rejects_invalid_length(valid_job):
 
 def test_required_field_definition_contains_sixteen_fields():
     assert len(REQUIRED_JOB_FIELDS) == 16
+# Additional domain and IP validation tests
+
+def test_normalize_domain_rejects_non_string():
+    with pytest.raises(ValueError, match="Invalid domain name"):
+        _normalize_domain(123)
+
+
+def test_normalize_domain_rejects_too_long_domain():
+    domain = ".".join(["a" * 63] * 4) + ".com"
+
+    with pytest.raises(ValueError, match="Invalid domain name"):
+        _normalize_domain(domain)
+
+
+def test_normalize_domain_rejects_long_label():
+    domain = ("a" * 64) + ".com"
+
+    with pytest.raises(ValueError, match="Invalid domain name"):
+        _normalize_domain(domain)
+
+
+def test_target_indicator_rejects_invalid_ip():
+    with pytest.raises(ValueError, match="Invalid target IP"):
+        _validate_target_indicator(
+            "999.999.999.999",
+            "ipv4"
+        )
+
+def test_url_rejects_missing_host():
+    with pytest.raises(ValueError, match="Invalid target URL"):
+        _validate_target_indicator(
+            "http:///path",
+            "url"
+        )
+
+
+def test_url_rejects_credentials():
+    with pytest.raises(ValueError, match="Invalid target URL"):
+        _validate_target_indicator(
+            "http://user:password@example.com",
+            "url"
+        )
+
+
+def test_url_rejects_zero_port():
+    with pytest.raises(ValueError, match="Invalid target URL"):
+        _validate_target_indicator(
+            "http://example.com:0",
+            "url"
+        )
+
+
+def test_url_rejects_invalid_hostname():
+    with pytest.raises(ValueError, match="Invalid target URL"):
+        _validate_target_indicator(
+            "http://bad..example",
+            "url"
+        )
+
+
+def test_valid_url_is_accepted():
+    result = _validate_target_indicator(
+        "https://example.com",
+        "url"
+    )
+
+    assert result == "https://example.com"
