@@ -1,0 +1,20 @@
+﻿<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.95">
+    <host>
+        <status state="up" reason="user-set"/>
+        <address addr="192.0.2.10" addrtype="ipv4"/>
+        <hostnames>
+            <hostname name="example.test" type="user"/>
+        </hostnames>
+        <ports>
+            <port protocol="tcp" portid="80">
+                <state state="open" reason="syn-ack"/>
+                <service name="http" product="Example HTTP"/>
+            </port>
+            <port protocol="tcp" portid="443">
+                <state state="closed" reason="reset"/>
+                <service name="https"/>
+            </port>
+        </ports>
+    </host>
+</nmaprun>
