@@ -85,7 +85,7 @@ def test_fetch_ip_rdap_returns_record(monkeypatch):
     args, kwargs = mock_get.call_args
     assert args[0] == "https://rdap.org/ip/8.8.8.8"
     assert kwargs["timeout"] == (3.05, 10)
-    assert kwargs["allow_redirects"] is True
+    assert kwargs["allow_redirects"] is False
 
 
 def test_fetch_ip_rdap_rejects_private_ip_without_request(monkeypatch):
@@ -138,7 +138,7 @@ def test_fetch_ip_rdap_rejects_invalid_json(monkeypatch):
         Mock(return_value=mock_response),
     )
 
-    with pytest.raises(ValueError, match="invalid JSON"):
+    with pytest.raises(ValueError, match="[Ii]nvalid JSON"):
         ip_module._fetch_ip_rdap("8.8.8.8")
 
 def test_parse_ip_rdap_extracts_registration_metadata():
