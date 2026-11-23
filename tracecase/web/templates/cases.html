@@ -58,6 +58,7 @@ Manage and review your authorized external cyber investigation cases.
                         <th>Created</th>
                         <th>Updated</th>
                         <th>Closed</th>
+                        <th>Notes</th>
                     </tr>
                 </thead>
 
@@ -83,11 +84,12 @@ Manage and review your authorized external cyber investigation cases.
 
                         <td>{{ case.updated_at_utc or "Not recorded" }}</td>
 
-                        <td>{{ case.closed_at_utc or "—" }}</td>
+                        <td>{{ case.closed_at_utc or "-" }}</td>
+                        <td>{{ case.notes or "Not recorded" }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             No investigation cases are available yet.
                         </td>
                     </tr>
