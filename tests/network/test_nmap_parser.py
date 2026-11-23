@@ -1,12 +1,13 @@
 
 import unittest
 from pathlib import Path
+from datetime import datetime
 
 from tracecase.network.nmap_parser import (
+    MAX_FILE_SIZE,
     parse_nmap_xml_file,
     parse_nmap_xml,
 )
-from datetime import datetime
 
 
 class TestNmapParser(unittest.TestCase):
@@ -80,7 +81,6 @@ class TestNmapParser(unittest.TestCase):
                 indicator_type="ip"
             )
 
-
     def test_parse_nmap_xml_file(self):
         artifact_path = (
             Path(__file__).parent.parent
@@ -127,8 +127,10 @@ class TestNmapParser(unittest.TestCase):
                 parse_nmap_xml_file(artifact_path)
         finally:
             artifact_path.unlink()
+
     def test_invalid_root_element(self):
         artifact_path = Path(__file__).parent / "wrong_root.xml"
+
         artifact_path.write_text(
             "<not_nmap></not_nmap>",
             encoding="utf-8"
@@ -154,6 +156,24 @@ class TestNmapParser(unittest.TestCase):
                 indicator="192.0.2.10",
                 indicator_type=""
             )
+
+    def test_oversized_nmap_xml_is_rejected(self):
+        artifact_path = Path(__file__).parent / "oversized_nmap.xml"
+
+        try:
+            with artifact_path.open("wb") as file:
+                file.truncate(MAX_FILE_SIZE + 1)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Nmap XML file exceeds the allowed size"
+            ):
+                parse_nmap_xml_file(artifact_path)
+
+        finally:
+            if artifact_path.exists():
+                artifact_path.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()

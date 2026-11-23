@@ -1,11 +1,32 @@
-from datetime import datetime, timezone
+
+import os
 import subprocess
+import tempfile
+import time
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+# Trusted local configuration. This path must be configured on the worker.
+TSHARK_PATH = Path(
+    os.environ.get(
+        "TRACECASE_TSHARK_PATH",
+        r"C:\Program Files\Wireshark\tshark.exe",
+    )
+)
+
+MAX_PACKETS = 500
+MAX_FILE_SIZE = 100 * 1024 * 1024
+MAX_OUTPUT_SIZE = 5 * 1024 * 1024
+TIMEOUT_SECONDS = 30
+POLL_INTERVAL_SECONDS = 0.05
+
+
 def analyze_pcap(
     *,
     artifact_path: Path,
     indicator: str,
-    indicator_type: str
+    indicator_type: str,
 ) -> list[dict]:
     """Convert PCAP analysis results into a FindingPayload-compatible list."""
 
@@ -26,7 +47,7 @@ def analyze_pcap(
     limitations = [
         "Analysis is limited to the first 500 packets.",
         "Packet details depend on the fields available in the capture.",
-        "This analysis does not establish whether observed traffic is malicious."
+        "This analysis does not establish whether observed traffic is malicious.",
     ]
 
     payload = {
@@ -52,13 +73,82 @@ def analyze_pcap(
 
     return [payload]
 
-TSHARK_PATH = Path(
-    r"C:\Program Files\Wireshark\tshark.exe"
-)
 
-MAX_PACKETS = 500
-MAX_FILE_SIZE = 100 * 1024 * 1024
-TIMEOUT_SECONDS = 30
+def _stop_process(process: subprocess.Popen) -> None:
+    """Stop TShark and wait for its process to exit."""
+
+    if process.poll() is None:
+        process.terminate()
+
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+
+def _run_tshark(command: list[str]) -> str:
+    """Run TShark while monitoring its output size and execution time."""
+
+    with tempfile.TemporaryFile(mode="w+b") as output_file:
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=output_file,
+                stderr=subprocess.DEVNULL,
+                shell=False,
+            )
+        except OSError as error:
+            raise ValueError("Unable to execute TShark.") from error
+
+        start_time = time.monotonic()
+
+        try:
+            while process.poll() is None:
+                output_file.seek(0, 2)
+                output_size = output_file.tell()
+
+                if output_size > MAX_OUTPUT_SIZE:
+                    _stop_process(process)
+                    raise ValueError(
+                        "TShark output exceeds the allowed size."
+                    )
+
+                if time.monotonic() - start_time > TIMEOUT_SECONDS:
+                    _stop_process(process)
+                    raise ValueError("TShark analysis timed out.")
+
+                time.sleep(POLL_INTERVAL_SECONDS)
+
+            return_code = process.wait()
+
+            output_file.seek(0, 2)
+            output_size = output_file.tell()
+
+            if output_size > MAX_OUTPUT_SIZE:
+                raise ValueError(
+                    "TShark output exceeds the allowed size."
+                )
+
+            if return_code != 0:
+                raise ValueError(
+                    "TShark could not read the capture file."
+                )
+
+            output_file.seek(0)
+            output = output_file.read(MAX_OUTPUT_SIZE + 1)
+
+            if len(output) > MAX_OUTPUT_SIZE:
+                raise ValueError(
+                    "TShark output exceeds the allowed size."
+                )
+
+            return output.decode("utf-8", errors="replace")
+
+        except BaseException:
+            if process.poll() is None:
+                _stop_process(process)
+            raise
 
 
 def parse_pcap_file(artifact_path: Path) -> list[dict]:
@@ -72,8 +162,11 @@ def parse_pcap_file(artifact_path: Path) -> list[dict]:
     if artifact_path.suffix.lower() not in (".pcap", ".pcapng"):
         raise ValueError("Unsupported capture file format.")
 
-    if artifact_path.stat().st_size > MAX_FILE_SIZE:
-        raise ValueError("Capture file exceeds the allowed size.")
+    try:
+        if artifact_path.stat().st_size > MAX_FILE_SIZE:
+            raise ValueError("Capture file exceeds the allowed size.")
+    except OSError as error:
+        raise ValueError("Unable to access the capture file.") from error
 
     if not TSHARK_PATH.is_file():
         raise ValueError("TShark executable was not found.")
@@ -95,28 +188,11 @@ def parse_pcap_file(artifact_path: Path) -> list[dict]:
         "-e", "_ws.col.Info",
     ]
 
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=TIMEOUT_SECONDS,
-            shell=False,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise ValueError("TShark analysis timed out.") from error
-    except OSError as error:
-        raise ValueError("Unable to execute TShark.") from error
-
-    if result.returncode != 0:
-        raise ValueError("TShark could not read the capture file.")
+    output = _run_tshark(command)
 
     findings = []
 
-    for line in result.stdout.splitlines():
+    for line in output.splitlines():
         fields = line.split("\t")
 
         if len(fields) != 8:

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ case.title }}</h1>
+
+<div class="card">
+
+    <p>
+        <strong>Case ID:</strong>
+        {{ case.case_id }}
+    </p>
+
+    <p>
+        <strong>Status:</strong>
+        {{ case.status }}
+    </p>
+
+    <p>
+        <strong>Scope:</strong>
+        {{ case.scope_description }}
+    </p>
+
+    <p>
+        <strong>Description:</strong>
+        {{ case.description or "No description" }}
+    </p>
+
+    <p>
+        <strong>Created:</strong>
+        {{ case.created_at_utc }}
+    </p>
+
+    <p>
+        <strong>Updated:</strong>
+        {{ case.updated_at_utc }}
+    </p>
+
+</div>
+
+<a href="{{ url_for('web.cases_page') }}">
+    Back to Cases
+</a>
+
+{% endblock %}

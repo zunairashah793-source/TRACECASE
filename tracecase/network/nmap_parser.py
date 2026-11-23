@@ -1,21 +1,40 @@
 
-
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
 
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 def _parse_nmap_xml_document(artifact_path: Path):
     """Read and validate an Nmap XML document."""
+
+    if not artifact_path.is_file():
+        raise ValueError(
+            "Nmap XML file does not exist or is not a regular file."
+        )
+
+    try:
+        if artifact_path.stat().st_size > MAX_FILE_SIZE:
+            raise ValueError("Nmap XML file exceeds the allowed size.")
+    except OSError as error:
+        raise ValueError(
+            f"Unable to access Nmap XML file: {error}"
+        ) from error
 
     try:
         tree = ET.parse(artifact_path)
         root = tree.getroot()
     except (ET.ParseError, OSError) as error:
-        raise ValueError(f"Unable to parse Nmap XML: {error}") from error
+        raise ValueError(
+            f"Unable to parse Nmap XML: {error}"
+        ) from error
 
     if root.tag != "nmaprun":
-        raise ValueError("Invalid Nmap XML: expected nmaprun root element")
+        raise ValueError(
+            "Invalid Nmap XML: expected nmaprun root element"
+        )
 
     results = []
 
