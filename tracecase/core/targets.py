@@ -1,13 +1,19 @@
 import sqlite3
 
-from tracecase.contracts import TargetCreate, Target
+from tracecase.contracts import (
+    TargetCreate,
+    Target,
+    IndicatorType,
+    TargetKind,
+)
+
 from tracecase.core.database import get_connection
+
 from tracecase.core.validators import (
     generate_id,
     utc_now,
     validate_indicator,
     validate_enum,
-    validate_required_text,
 )
 
 
@@ -15,6 +21,7 @@ def create_target(case_id: str, data: TargetCreate) -> Target:
     connection = get_connection()
 
     try:
+        # Check whether the case exists
         case = connection.execute(
             "SELECT case_id, status FROM cases WHERE case_id = ?",
             (case_id,),
@@ -23,27 +30,33 @@ def create_target(case_id: str, data: TargetCreate) -> Target:
         if case is None:
             raise ValueError("Case not found")
 
+        # Prevent adding targets to closed cases
         if case["status"] == "closed":
             raise ValueError("Cannot add targets to a closed case")
 
+        # Validate and normalize the indicator
         indicator = validate_indicator(
             data.indicator,
             data.indicator_type,
         )
 
+        # Validate indicator type using the canonical enum
         indicator_type = validate_enum(
             data.indicator_type,
-            type(data.indicator_type),
+            IndicatorType,
         )
 
+        # Validate target kind using the canonical enum
         target_kind = validate_enum(
             data.target_kind,
-            type(data.target_kind),
+            TargetKind,
         )
 
+        # Generate target metadata
         target_id = generate_id()
         created_at = utc_now()
 
+        # Insert target into database
         connection.execute(
             """
             INSERT INTO targets (
@@ -68,18 +81,19 @@ def create_target(case_id: str, data: TargetCreate) -> Target:
                 indicator,
                 indicator_type,
                 target_kind,
-                getattr(data, "display_name", None),
-                int(getattr(data, "active_testing_authorized", False)),
-                getattr(data, "scope_note", None),
-                getattr(data, "authorization_note", None),
-                getattr(data, "authorization_expires_at_utc", None),
-                getattr(data, "notes", None),
+                data.display_name,
+                int(data.active_testing_authorized),
+                data.scope_note,
+                data.authorization_note,
+                data.authorization_expires_at_utc,
+                data.notes,
                 created_at,
             ),
         )
 
         connection.commit()
 
+        # Retrieve the created target
         row = connection.execute(
             """
             SELECT *
@@ -88,6 +102,9 @@ def create_target(case_id: str, data: TargetCreate) -> Target:
             """,
             (target_id, case_id),
         ).fetchone()
+
+        if row is None:
+            raise RuntimeError("Target was created but could not be retrieved")
 
         return Target(**dict(row))
 
@@ -135,7 +152,10 @@ def list_targets(case_id: str) -> list[Target]:
             (case_id,),
         ).fetchall()
 
-        return [Target(**dict(row)) for row in rows]
+        return [
+            Target(**dict(row))
+            for row in rows
+        ]
 
     finally:
         connection.close()

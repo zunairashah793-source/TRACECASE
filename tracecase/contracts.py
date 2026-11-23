@@ -145,6 +145,38 @@ class AssessmentJob:
     expires_at_utc: str
     nonce: str
 
+# ============================================================
+# TARGET MODELS
+# ============================================================
+
+@dataclass
+class TargetCreate:
+    indicator: str
+    indicator_type: IndicatorType
+    target_kind: TargetKind
+    display_name: str | None = None
+    active_testing_authorized: bool = False
+    scope_note: str | None = None
+    authorization_note: str | None = None
+    authorization_expires_at_utc: str | None = None
+    notes: str | None = None
+
+
+@dataclass
+class Target:
+    target_id: str
+    case_id: str
+    indicator: str
+    indicator_type: IndicatorType
+    target_kind: TargetKind
+    display_name: str | None
+    active_testing_authorized: bool
+    scope_note: str | None
+    authorization_note: str | None
+    authorization_expires_at_utc: str | None
+    notes: str | None
+    created_at_utc: str
+
 
 # ============================================================
 # WORKER DESCRIPTOR AND JOB RECEIPT
