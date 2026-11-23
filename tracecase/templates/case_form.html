@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Create Investigation Case</h1>
+
+<form method="POST">
+
+    <div class="form-group">
+        <label for="title">Case Title</label>
+
+        <input
+            type="text"
+            id="title"
+            name="title"
+            maxlength="200"
+            value="{{ data.get('title', '') }}"
+            required
+        >
+
+        {% if errors.get('title') %}
+        <p class="error">{{ errors.title }}</p>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+
+        <textarea
+            id="description"
+            name="description"
+        >{{ data.get('description', '') }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="scope_description">
+            Investigation Scope
+        </label>
+
+        <textarea
+            id="scope_description"
+            name="scope_description"
+            required
+        >{{ data.get('scope_description', '') }}</textarea>
+
+        {% if errors.get('scope_description') %}
+        <p class="error">
+            {{ errors.scope_description }}
+        </p>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+
+        <textarea
+            id="notes"
+            name="notes"
+        >{{ data.get('notes', '') }}</textarea>
+    </div>
+
+    <button type="submit">
+        Create Case
+    </button>
+
+    <a href="{{ url_for('web.cases_page') }}">
+        Cancel
+    </a>
+
+</form>
+
+{% endblock %}
