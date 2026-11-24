@@ -185,3 +185,103 @@ def test_dns_failure_returns_error(monkeypatch):
 
     assert len(results) == 1
     assert results[0].status == FindingStatus.ERROR
+
+def test_normalizes_colon_separated_fingerprint():
+    fingerprint = ":".join(["ab"] * 32)
+
+    host, kind, port, is_ip = tls_intel._normalize_target(
+        "SHA256:" + fingerprint,
+        "tls_certificate",
+    )
+
+    assert host == "ab" * 32
+    assert kind == IndicatorType.TLS_CERTIFICATE
+    assert port == 443
+    assert is_ip is False
+
+
+def test_rejects_single_label_hostname():
+    with pytest.raises(ValueError):
+        tls_intel._normalize_target("localhost", "hostname")
+
+
+def test_rejects_reserved_hostname_suffix():
+    with pytest.raises(ValueError):
+        tls_intel._normalize_target("server.internal", "hostname")
+
+
+def test_rejects_excessive_dns_answers(monkeypatch):
+    fake_answers = [
+        (2, 1, 6, "", (f"8.8.8.{index}", 443))
+        for index in range(1, 22)
+    ]
+
+    monkeypatch.setattr(
+        tls_intel.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: fake_answers,
+    )
+
+    with pytest.raises(ValueError, match="too many DNS answers"):
+        tls_intel._resolve_public_addresses("example.com", 443, False)
+
+
+def test_partial_tls_collection_preserves_success_and_failure(monkeypatch):
+    fake_result = {
+        "host": "example.com",
+        "connected_address": "93.184.216.34",
+        "port": 443,
+        "tls_version": "TLSv1.3",
+        "cipher": "TLS_AES_256_GCM_SHA384",
+        "certificate": {
+            "sha256_fingerprint": "a" * 64,
+            "hostname_verification": "passed",
+            "chain_verification": "passed",
+        },
+    }
+
+    addresses = ["93.184.216.34", "1.1.1.1"]
+
+    monkeypatch.setattr(
+        tls_intel,
+        "_resolve_public_addresses",
+        lambda *args: addresses,
+    )
+
+    def fake_inspection(**kwargs):
+        if kwargs["address"] == addresses[0]:
+            return fake_result
+        raise OSError("simulated second-address failure")
+
+    monkeypatch.setattr(
+        tls_intel,
+        "_inspect_certificate",
+        fake_inspection,
+    )
+
+    results = tls_intel.collect_tls_intel(
+        indicator="example.com",
+        indicator_type="domain",
+    )
+
+    assert len(results) == 1
+    assert results[0].status == FindingStatus.PARTIAL
+    assert results[0].finding["certificate"]["sha256_fingerprint"] == "a" * 64
+    assert results[0].finding["successful_inspections"] == 1
+    assert results[0].finding["resolved_addresses"] == addresses
+    assert results[0].finding["inspection_errors"][0]["address"] == addresses[1]
+
+
+def test_censys_redirect_handler_does_not_follow_redirects():
+    handler = tls_intel._NoRedirectHandler()
+
+    result = handler.redirect_request(
+        None,
+        None,
+        302,
+        "Found",
+        {},
+        "https://redirect.example/",
+    )
+
+    assert result is None

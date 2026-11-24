@@ -85,11 +85,12 @@ def _make_payload(
 # TARGET NORMALIZATION AND VALIDATION
 # ============================================================
 
+
 def _normalize_target(
     indicator: str,
     indicator_type: str,
 ) -> tuple[str, IndicatorType, int, bool]:
-    """Return normalized host/fingerprint, type, port, and IP flag."""
+    """Validate and normalize a public TLS target."""
 
     if not isinstance(indicator, str) or not indicator.strip():
         raise ValueError("A TLS indicator is required.")
@@ -101,15 +102,20 @@ def _normalize_target(
     except (ValueError, TypeError):
         raise ValueError("Unsupported indicator type.") from None
 
-    # Certificate fingerprints are handled through passive lookup.
     if kind == IndicatorType.TLS_CERTIFICATE:
-        fingerprint = re.sub(
-            r"[^0-9a-fA-F]",
-            "",
-            value,
-        ).lower()
+        raw_fingerprint = value
 
-        if not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+        if raw_fingerprint.lower().startswith("sha256:"):
+            raw_fingerprint = raw_fingerprint[7:]
+
+        if re.fullmatch(r"[0-9a-fA-F]{64}", raw_fingerprint):
+            fingerprint = raw_fingerprint.lower()
+        elif re.fullmatch(
+            r"(?:[0-9a-fA-F]{2}:){31}[0-9a-fA-F]{2}",
+            raw_fingerprint,
+        ):
+            fingerprint = raw_fingerprint.replace(":", "").lower()
+        else:
             raise ValueError(
                 "A TLS certificate indicator must be a SHA-256 fingerprint."
             )
@@ -122,14 +128,16 @@ def _normalize_target(
         try:
             parsed = urlsplit(value)
 
-            if parsed.scheme.lower() != "https":
+            if (
+                parsed.scheme.lower() != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+            ):
                 raise ValueError
 
-            if not parsed.hostname or parsed.username or parsed.password:
-                raise ValueError
-
-            port = parsed.port or DEFAULT_PORT
             host = parsed.hostname
+            port = parsed.port if parsed.port is not None else DEFAULT_PORT
 
         except ValueError:
             raise ValueError(
@@ -144,7 +152,6 @@ def _normalize_target(
         IndicatorType.HOSTNAME,
     ):
         host = value
-
     else:
         raise ValueError(
             "TLS inspection requires an IP, domain, subdomain, "
@@ -188,25 +195,38 @@ def _normalize_target(
     try:
         normalized = host.encode("idna").decode("ascii").lower()
     except UnicodeError:
-        raise ValueError(
-            "Invalid internationalized hostname."
-        ) from None
+        raise ValueError("Invalid internationalized hostname.") from None
 
     if not normalized or len(normalized) > 253:
         raise ValueError("Invalid hostname length.")
 
     labels = normalized.split(".")
 
+    if len(labels) < 2:
+        raise ValueError("Single-label hostnames are not permitted.")
+
     if any(
         not label
         or len(label) > 63
-        or not re.fullmatch(
-            r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?",
-            label,
-        )
+        or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
         for label in labels
     ):
         raise ValueError("Invalid hostname.")
+
+    blocked_suffixes = (
+        "localhost",
+        "local",
+        "internal",
+        "test",
+        "invalid",
+        "example",
+    )
+
+    if any(
+        normalized == suffix or normalized.endswith("." + suffix)
+        for suffix in blocked_suffixes
+    ):
+        raise ValueError("Reserved or local hostname suffixes are not permitted.")
 
     return normalized, kind, port, False
 
@@ -215,20 +235,19 @@ def _normalize_target(
 # PUBLIC DNS VALIDATION
 # ============================================================
 
+
 def _resolve_public_addresses(
     host: str,
     port: int,
     is_ip: bool,
 ) -> list[str]:
-    """Resolve a host and reject any non-public destination address."""
+    """Resolve a host and reject non-public or excessive DNS answers."""
 
     if is_ip:
         address = ipaddress.ip_address(host)
 
         if not address.is_global:
-            raise ValueError(
-                "Non-public IP addresses are not permitted."
-            )
+            raise ValueError("Non-public IP addresses are not permitted.")
 
         return [str(address)]
 
@@ -238,20 +257,21 @@ def _resolve_public_addresses(
             port,
             type=socket.SOCK_STREAM,
         )
-    except socket.gaierror:
+    except OSError:
         raise OSError("Hostname resolution failed.") from None
+
+    if len(results) > MAX_ADDRESSES:
+        raise ValueError("The hostname returned too many DNS answers.")
 
     addresses: list[str] = []
 
     for result in results:
-        address_text = result[4][0]
-
         try:
+            address_text = result[4][0]
             address = ipaddress.ip_address(address_text)
-        except ValueError:
+        except (IndexError, TypeError, ValueError):
             continue
 
-        # Reject mixed public/private DNS answers.
         if not address.is_global:
             raise ValueError(
                 "The hostname resolves to a non-public IP address."
@@ -261,11 +281,6 @@ def _resolve_public_addresses(
 
         if normalized not in addresses:
             addresses.append(normalized)
-
-        if len(addresses) > MAX_ADDRESSES:
-            raise ValueError(
-                "The hostname returned too many addresses."
-            )
 
     if not addresses:
         raise OSError("No usable IP addresses were returned.")
@@ -472,6 +487,22 @@ def _censys_error(
     ]
 
 
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevent authenticated Censys requests from following redirects."""
+
+    def redirect_request(
+        self,
+        req,
+        fp,
+        code,
+        msg,
+        headers,
+        newurl,
+    ):
+        return None
+
+
 def _collect_fingerprint_lookup(
     fingerprint: str,
     kind: IndicatorType,
@@ -500,7 +531,9 @@ def _collect_fingerprint_lookup(
     )
 
     try:
-        with urllib.request.urlopen(
+        opener = urllib.request.build_opener(_NoRedirectHandler())
+
+        with opener.open(
             request,
             timeout=CENSYS_TIMEOUT,
         ) as response:
@@ -672,6 +705,7 @@ def _collect_fingerprint_lookup(
 # PUBLIC TLS COLLECTOR
 # ============================================================
 
+
 def collect_tls_intel(
     *,
     indicator: str,
@@ -684,7 +718,6 @@ def collect_tls_intel(
         indicator_type,
     )
 
-    # Certificate fingerprints use passive Censys lookup only.
     if kind == IndicatorType.TLS_CERTIFICATE:
         return _collect_fingerprint_lookup(host, kind)
 
@@ -694,10 +727,8 @@ def collect_tls_intel(
             port,
             is_ip,
         )
-
     except ValueError:
         raise
-
     except OSError as exc:
         return [
             _make_payload(
@@ -717,7 +748,8 @@ def collect_tls_intel(
             )
         ]
 
-    errors: list[str] = []
+    successes: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
 
     for address in addresses:
         try:
@@ -727,43 +759,73 @@ def collect_tls_intel(
                 port=port,
                 is_ip=is_ip,
             )
-
-            return [
-                _make_payload(
-                    indicator=host,
-                    indicator_type=kind,
-                    status=FindingStatus.SUCCESS,
-                    summary=(
-                        f"TLS certificate inspected successfully for "
-                        f"{host}:{port}."
-                    ),
-                    finding=result,
-                    confidence=Confidence.HIGH,
-                    limitations=[
-                        "Inspection reflects the certificate presented "
-                        "to this connection at collection time.",
-                        "A successful handshake does not establish that "
-                        "the website or service is trustworthy.",
-                    ],
-                )
-            ]
+            successes.append(result)
 
         except (OSError, ssl.SSLError, TimeoutError) as exc:
-            errors.append(type(exc).__name__)
+            errors.append({
+                "address": address,
+                "error_type": type(exc).__name__,
+            })
+
+    if successes:
+        partial = bool(errors)
+        primary_result = dict(successes[0])
+
+        # Preserve the original evidence fields while adding multi-address
+        # evidence for the investigation report.
+        primary_result.update({
+            "resolved_addresses": addresses,
+            "successful_inspections": len(successes),
+            "inspection_errors": errors,
+            "certificate_inspections": successes,
+        })
+
+        limitations = [
+            "Inspection reflects certificates presented at collection time.",
+            "A successful handshake does not establish that the website "
+            "or service is trustworthy.",
+        ]
+
+        if partial:
+            limitations.append(
+                "Some resolved public addresses could not complete TLS inspection."
+            )
+
+        return [
+            _make_payload(
+                indicator=host,
+                indicator_type=kind,
+                status=(
+                    FindingStatus.PARTIAL if partial else FindingStatus.SUCCESS
+                ),
+                summary=(
+                    f"TLS inspection completed with partial results for "
+                    f"{host}:{port}."
+                    if partial
+                    else f"TLS certificate inspected successfully for {host}:{port}."
+                ),
+                finding=primary_result,
+                confidence=(
+                    Confidence.MEDIUM if partial else Confidence.HIGH
+                ),
+                limitations=limitations,
+            )
+        ]
 
     return [
         _make_payload(
             indicator=host,
             indicator_type=kind,
             status=FindingStatus.ERROR,
-            summary=(
-                f"TLS certificate inspection failed for {host}:{port}."
-            ),
+            summary=f"TLS certificate inspection failed for {host}:{port}.",
             finding={
                 "host": host,
                 "port": port,
                 "attempted_addresses": addresses,
-                "error_types": sorted(set(errors)),
+                "error_types": sorted({
+                    item["error_type"] for item in errors
+                }),
+                "inspection_errors": errors,
             },
             limitations=[
                 "No certificate metadata was collected.",
