@@ -38,13 +38,13 @@ def validate_case_form(form) -> ValidationResult:
             "Scope description is too long."
         )
 
-    if len(description) > 10000:
+    if len(description) > 5000:
         errors["description"] = (
-            "Description is too long."
+            "Description cannot exceed 5000 characters."
         )
 
-    if len(notes) > 10000:
-        errors["notes"] = "Notes are too long."
+    if len(notes) > 5000:
+        errors["notes"] = "Notes cannot exceed 5000 characters."
 
     data = {
         "title": title,

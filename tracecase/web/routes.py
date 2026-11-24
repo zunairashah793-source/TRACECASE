@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from flask import (
     Blueprint,
     render_template,
@@ -13,6 +15,7 @@ from tracecase.core.cases import (
     create_case,
     list_cases,
 )
+from tracecase.core.database import get_connection
 
 web = Blueprint(
     "web",
@@ -26,9 +29,29 @@ web = Blueprint(
 def dashboard():
     cases = list_cases()
 
+    # Dashboard metrics are read from the existing shared database schema.
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM cases) AS total_cases,
+                (SELECT COUNT(*) FROM cases WHERE status = 'open')
+                    AS open_cases,
+                (SELECT COUNT(*) FROM cases WHERE status = 'closed')
+                    AS closed_cases,
+                (SELECT COUNT(*) FROM targets) AS total_targets,
+                (SELECT COUNT(*) FROM findings) AS total_findings,
+                (SELECT COUNT(*) FROM investigation_runs
+                    WHERE status IN ('queued', 'running')) AS active_runs
+            """
+        ).fetchone()
+
+    dashboard_stats = dict(row)
+
     return render_template(
-        "dashboard.html",
-        cases=cases,
+        "ui_dashboard.html",
+        dashboard_stats=dashboard_stats,
+        recent_cases=cases[:5],
     )
 
 
@@ -37,7 +60,7 @@ def cases_page():
     cases = list_cases()
 
     return render_template(
-        "cases.html",
+        "ui_cases.html",
         cases=cases,
     )
 
@@ -57,14 +80,14 @@ def create_case_page():
             ), 400
 
         try:
-            case = create_case(result.data)
+            case = create_case(SimpleNamespace(**result.data))
 
             flash("Case created successfully.", "success")
 
             return redirect(
                 url_for(
                     "web.case_detail",
-                    case_id=case.case_id,
+                    case_id=case["case_id"],
                 )
             )
 

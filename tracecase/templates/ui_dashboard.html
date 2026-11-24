@@ -1,0 +1,179 @@
+
+
+{% extends "ui_base.html" %}
+{% from "ui_macros.html" import icon, pill, empty_state %}
+
+{% block title %}Dashboard | TRACECASE{% endblock %}
+
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block page_heading %}Investigation Dashboard{% endblock %}
+
+{% block page_description %}
+Monitor investigation cases, targets, findings and collected evidence.
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('web.cases_page') }}" class="btn btn-primary">
+    View Cases
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Dashboard statistics -->
+<div class="stats-grid">
+
+    <article class="card stat-card">
+        <div class="card-title">Total Cases</div>
+        <div class="card-value">{{ dashboard_stats.total_cases }}</div>
+        <div class="card-description">All investigation cases</div>
+    </article>
+
+    <article class="card stat-card">
+        <div class="card-title">Open Cases</div>
+        <div class="card-value">{{ dashboard_stats.open_cases }}</div>
+        <div class="card-description">Currently open cases</div>
+    </article>
+
+    <article class="card stat-card">
+        <div class="card-title">Closed Cases</div>
+        <div class="card-value">{{ dashboard_stats.closed_cases }}</div>
+        <div class="card-description">Completed cases</div>
+    </article>
+
+    <article class="card stat-card">
+        <div class="card-title">Investigated Targets</div>
+        <div class="card-value">{{ dashboard_stats.total_targets }}</div>
+        <div class="card-description">Registered investigation targets</div>
+    </article>
+
+    <article class="card stat-card">
+        <div class="card-title">Findings</div>
+        <div class="card-value">{{ dashboard_stats.total_findings }}</div>
+        <div class="card-description">Recorded investigation findings</div>
+    </article>
+
+    <article class="card stat-card">
+        <div class="card-title">Active Runs</div>
+        <div class="card-value">{{ dashboard_stats.active_runs }}</div>
+        <div class="card-description">Currently active investigations</div>
+    </article>
+
+</div>
+
+<!-- Main dashboard panels -->
+<div class="dashboard-grid">
+
+    <!-- Recent cases -->
+    <section class="card grid-span-8">
+        <div class="panel-title">Recent Investigation Cases</div>
+
+        <p class="card-description">
+            Your latest investigation cases.
+        </p>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Case</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for case in recent_cases %}
+                    <tr>
+                        <td>
+                            <strong>{{ case.title }}</strong>
+                            <div class="card-description">
+                                {{ case.case_id }}
+                            </div>
+                        </td>
+                        <td>{{ pill(case.status, case.status) }}</td>
+                        <td>{{ case.created_at_utc }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3">
+                            No investigation cases available yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Investigation overview -->
+    <section class="card grid-span-4">
+        <div class="panel-title">Investigation Overview</div>
+
+        <p class="card-description">
+            A summary of the current investigation workspace.
+        </p>
+
+        <div class="card-value">
+            {{ dashboard_stats.active_runs }}
+        </div>
+
+        <p class="card-description">
+            Active investigation runs.
+        </p>
+    </section>
+
+    <!-- Threat intelligence -->
+    <section class="card grid-span-6">
+        <div class="panel-title">External Threat Intelligence</div>
+
+        <p class="card-description">
+            Public IP, DNS, ASN, ISP, domain and TLS intelligence.
+        </p>
+
+        {{ pill("Awaiting investigation data", "neutral") }}
+    </section>
+
+    <!-- Network analysis -->
+    <section class="card grid-span-6">
+        <div class="panel-title">Network Security Analysis</div>
+
+        <p class="card-description">
+            Authorized Nmap results, PCAP analysis and security
+            observations.
+        </p>
+
+        {{ pill("Awaiting investigation data", "neutral") }}
+    </section>
+
+    <!-- Evidence and timeline -->
+    <section class="card grid-span-7">
+        <div class="panel-title">Recent Evidence</div>
+
+        <p class="card-description">
+            Collected evidence and its documented source will
+            appear here.
+        </p>
+
+        <div class="status status-neutral">
+            Evidence records will appear when supplied by the backend.
+        </div>
+    </section>
+
+    <section class="card grid-span-5">
+        <div class="panel-title">Investigation Timeline</div>
+
+        <p class="card-description">
+            Important investigation events will appear here in
+            chronological order.
+        </p>
+
+        <div class="status status-neutral">
+            Awaiting timeline data
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}
